@@ -43,6 +43,9 @@ async function main() {
     where: { userId: user.id, isDefault: true },
   });
 
+  const WIN_EMOTIONS: ("CALM"|"CONFIDENT"|"NEUTRAL"|"FOCUSED")[] = ["CALM","CONFIDENT","NEUTRAL","FOCUSED"];
+  const LOSS_EMOTIONS: ("FRUSTRATED"|"ANXIOUS"|"NEUTRAL")[] = ["FRUSTRATED","ANXIOUS","NEUTRAL"];
+
   const trades = [];
   const now = new Date();
 
@@ -97,7 +100,7 @@ async function main() {
       entryTime,
       exitTime,
       emotionBefore,
-      emotionAfter: isWin ? pick(["CALM","CONFIDENT","NEUTRAL","FOCUSED"]) : pick(["FRUSTRATED","ANXIOUS","NEUTRAL"]),
+      emotionAfter: isWin ? pick(WIN_EMOTIONS) : pick(LOSS_EMOTIONS),
       confidenceLevel: Math.floor(rand(5, 10)),
       executionRating: Math.floor(rand(4, 10)),
       notes: isWin ? `Clean ${setup} setup. Waited for confirmation.` : `Missed key confluence.`,
