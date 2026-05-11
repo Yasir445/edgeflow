@@ -1,22 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateDashboardStats } from "@/lib/analytics";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const sub = await prisma.subscription.findUnique({ where: { userId: session.user.id } });
-  if (sub?.plan === "FREE") return NextResponse.json({ error: "AI Coach requires Pro plan." }, { status: 403 });
+  const sub = await prisma.subscription.findUnique({
+    where: { userId: session.user.id },
+  });
+  if (sub?.plan === "FREE") {
+    return NextResponse.json({ error: "AI Coach requires Pro plan." }, { status: 403 });
+  }
 
   const { messages } = await req.json();
-  if (!messages || !Array.isArray(messages)) return NextResponse.json({ error: "Invalid messages" }, { status: 400 });
+  if (!messages || !Array.isArray(messages)) {
+    return NextResponse.json({ error: "Invalid messages" }, { status: 400 });
+  }
 
-  const trades = await prisma.trade.findMany({ where: { userId: session.user.id }, orderBy: { entryTime: "desc" }, take: 50 });
+  const trades = await prisma.trade.findMany({
+    where: { userId: session.user.id },
+    orderBy: { entryTime: "desc" },
+    take: 50,
+  });
   const stats = calculateDashboardStats(trades as any);
 
   const systemPrompt = `You are EdgeFlow AI Coach — a sharp, data-driven trading psychology and performance coach.
@@ -32,16 +44,26 @@ Trader data:
 - Risk Score: ${stats.riskScore}/100
 - Best Setup: ${stats.bestSetup}
 
-Be direct, concise, data-backed. Keep responses to 3-5 sentences unless detailed breakdown requested. Focus on actionable improvements.`;
+Be direct, concise, data-backed. Keep responses to 3-5 sentences unless detailed breakdown requested.`;
 
   try {
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
     const response = await client.messages.create({
       model: "claude-opus-4-5",
       max_tokens: 1000,
       system: systemPrompt,
-      messages: messages.map((m: { role: string; content: string }) => ({ role: m.role as "user" | "assistant", content: m.content })),
+      messages: messages.map((m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
     });
-    const reply = response.content.map((c) => (c.type === "text" ? c.text : "")).join("");
+
+    const reply = response.content
+      .map((c) => (c.type === "text" ? c.text : ""))
+      .join("");
+
     return NextResponse.json({ data: { reply } });
   } catch (error) {
     console.error("AI Chat error:", error);
@@ -51,11 +73,17 @@ Be direct, concise, data-backed. Keep responses to 3-5 sentences unless detailed
 
 export async function PUT(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { tradeId } = await req.json();
-  const trade = await prisma.trade.findFirst({ where: { id: tradeId, userId: session.user.id } });
-  if (!trade) return NextResponse.json({ error: "Trade not found" }, { status: 404 });
+  const trade = await prisma.trade.findFirst({
+    where: { id: tradeId, userId: session.user.id },
+  });
+  if (!trade) {
+    return NextResponse.json({ error: "Trade not found" }, { status: 404 });
+  }
 
   const prompt = `Analyze this trade and provide structured feedback:
 Pair: ${trade.pair}, Direction: ${trade.direction}, Setup: ${trade.setup ?? "N/A"}
@@ -70,8 +98,18 @@ Respond ONLY with valid JSON:
 {"qualityScore":<0-100>,"strengths":["str1","str2"],"weaknesses":["weak1","weak2"],"suggestions":["sug1","sug2"],"psychFlags":{"revenge":<bool>,"fomo":<bool>,"emotional":<bool>,"riskIssue":<bool>},"summary":"<2-3 sentences>"}`;
 
   try {
-    const response = await client.messages.create({ model: "claude-opus-4-5", max_tokens: 1000, messages: [{ role: "user", content: prompt }] });
-    const text = response.content.map((c) => (c.type === "text" ? c.text : "")).join("");
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const response = await client.messages.create({
+      model: "claude-opus-4-5",
+      max_tokens: 1000,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = response.content
+      .map((c) => (c.type === "text" ? c.text : ""))
+      .join("");
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON");
     const feedback = JSON.parse(jsonMatch[0]);
@@ -81,7 +119,16 @@ Respond ONLY with valid JSON:
       create: { tradeId, ...feedback },
       update: { ...feedback },
     });
-    await prisma.trade.update({ where: { id: tradeId }, data: { qualityScore: feedback.qualityScore, isRevengeAtrade: feedback.psychFlags.revenge, isFOMOTrade: feedback.psychFlags.fomo } });
+
+    await prisma.trade.update({
+      where: { id: tradeId },
+      data: {
+        qualityScore: feedback.qualityScore,
+        isRevengeAtrade: feedback.psychFlags.revenge,
+        isFOMOTrade: feedback.psychFlags.fomo,
+      },
+    });
+
     return NextResponse.json({ data: saved });
   } catch (error) {
     console.error("AI Feedback error:", error);
