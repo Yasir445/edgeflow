@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { calculateDashboardStats } from "@/lib/analytics";
+import { redirect } from "next/navigation";
 import { AnalyticsClient } from "@/components/analytics/AnalyticsClient";
 
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Analytics" };
 
 export default async function AnalyticsPage() {
   const session = await auth();
-  const userId = session!.user!.id!;
+  if (!session?.user) redirect("/login");
 
-  const trades = await prisma.trade.findMany({
-    where: { userId },
-    orderBy: { entryTime: "asc" },
-  });
-
-  const account = await prisma.tradingAccount.findFirst({
-    where: { userId, isDefault: true },
-  });
-
-  const stats = calculateDashboardStats(trades as any, account?.balance ?? 10000);
-  return <AnalyticsClient stats={stats} />;
+  return (
+    <AnalyticsClient
+      stats={{
+        totalPnl: 0, totalPnlPercent: 0, winRate: 0, totalTrades: 0,
+        avgRR: 0, profitFactor: 0, maxDrawdown: 0, currentStreak: 0,
+        psychScore: 100, riskScore: 100, disciplineScore: 100, expectancy: 0,
+        bestSetup: "N/A", worstSetup: "N/A",
+        equityCurve: [], recentTrades: [], setupStats: [],
+        sessionStats: [], emotionStats: [], monthlyPnl: [],
+      }}
+    />
+  );
 }
