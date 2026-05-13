@@ -1,18 +1,24 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+declare global {
+  var __prisma: PrismaClient | undefined;
+}
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
+function createPrismaClient() {
+  return new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["error"] : ["error"],
   });
+}
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export const prisma: PrismaClient = (() => {
+  if (typeof window !== "undefined") {
+    throw new Error("Prisma cannot be used on the client side");
+  }
+  if (process.env.NODE_ENV === "production") {
+    return createPrismaClient();
+  }
+  if (!global.__prisma) {
+    global.__prisma = createPrismaClient();
+  }
+  return global.__prisma;
+})();
