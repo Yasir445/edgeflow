@@ -1,7 +1,6 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -14,23 +13,31 @@ const RegisterSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const parsed = RegisterSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
+  try {
+    const body = await req.json();
+    const parsed = RegisterSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+    }
+    const { name, email, password } = parsed.data;
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+    }
+    const passwordHash = await bcrypt.hash(password, 12);
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        subscription: { create: { plan: "FREE", status: "ACTIVE" } },
+        accounts_tp: { create: { name: "Main Account", type: "LIVE", currency: "USD", isDefault: true } },
+      },
+      select: { id: true, name: true, email: true },
+    });
+    return NextResponse.json({ data: user }, { status: 201 });
+  } catch (error) {
+    console.error("Register error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-  const { name, email, password } = parsed.data;
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return NextResponse.json({ error: "Email already registered" }, { status: 409 });
-
-  const passwordHash = await bcrypt.hash(password, 12);
-  const user = await prisma.user.create({
-    data: {
-      name, email, passwordHash,
-      subscription: { create: { plan: "FREE", status: "ACTIVE" } },
-      accounts_tp: { create: { name: "Main Account", type: "LIVE", currency: "USD", isDefault: true } },
-    },
-    select: { id: true, name: true, email: true },
-  });
-  return NextResponse.json({ data: user }, { status: 201 });
 }
