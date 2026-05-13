@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { Send, Brain, Zap, Shield } from "lucide-react";
@@ -11,13 +13,12 @@ const QUICK_PROMPTS = [
   "How can I improve my win rate?",
   "Give me a pre-session routine",
   "Why is my risk inconsistent?",
-  "Generate my weekly performance summary",
 ];
 
 export default function AICoachPage() {
   const [messages, setMessages] = useState<Message[]>([{
     role: "assistant",
-    content: "👋 Hey trader. I am your EdgeFlow AI Coach — trained on your actual trade data.\n\nI can see your performance stats, psychology score, and trading patterns. I will give you honest, data-backed coaching — not generic motivation.\n\nWhat do you want to work on today?",
+    content: "Hey trader. I am your EdgeFlow AI Coach. Ask me anything about your trading performance, psychology, or patterns.",
     timestamp: new Date().toISOString(),
   }]);
   const [input, setInput] = useState("");
@@ -55,15 +56,16 @@ export default function AICoachPage() {
           <h1 className="text-2xl font-black text-white flex items-center gap-2">
             <Brain size={20} className="text-accent-green" /> AI Coach
           </h1>
-          <p className="text-white/30 text-sm mt-0.5">Powered by Claude · Analyzes your real trade data</p>
+          <p className="text-white/30 text-sm mt-0.5">Powered by Claude</p>
         </div>
         <span className="ef-badge-ai">✦ LIVE AI</span>
       </div>
+
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Psych Score", value: "82", icon: Brain, color: "#00ff9d" },
-          { label: "Risk Score", value: "74", icon: Shield, color: "#fbbf24" },
-          { label: "Discipline", value: "88", icon: Zap, color: "#00b8ff" },
+          { label: "Psych Score", value: "—", icon: Brain, color: "#00ff9d" },
+          { label: "Risk Score", value: "—", icon: Shield, color: "#fbbf24" },
+          { label: "Discipline", value: "—", icon: Zap, color: "#00b8ff" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="ef-card rounded-xl p-4 text-center">
             <Icon size={14} style={{ color }} className="mx-auto mb-1" />
@@ -72,11 +74,14 @@ export default function AICoachPage() {
           </div>
         ))}
       </div>
+
       <div className="flex-1 overflow-y-auto space-y-4 min-h-0 pr-1">
         {messages.map((m, i) => (
           <div key={i} className={cn("flex gap-3", m.role === "user" ? "flex-row-reverse" : "")}>
             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black flex-shrink-0 mt-0.5"
-              style={m.role === "assistant" ? { background: "linear-gradient(135deg,#00ff9d,#00b8ff)", color: "#000" } : { background: "rgba(255,255,255,0.08)", color: "white" }}>
+              style={m.role === "assistant"
+                ? { background: "linear-gradient(135deg,#00ff9d,#00b8ff)", color: "#000" }
+                : { background: "rgba(255,255,255,0.08)", color: "white" }}>
               {m.role === "assistant" ? "✦" : "U"}
             </div>
             <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap"
@@ -89,11 +94,13 @@ export default function AICoachPage() {
         ))}
         {loading && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black" style={{ background: "linear-gradient(135deg,#00ff9d,#00b8ff)", color: "#000" }}>✦</div>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black"
+              style={{ background: "linear-gradient(135deg,#00ff9d,#00b8ff)", color: "#000" }}>✦</div>
             <div className="ef-card rounded-2xl px-4 py-3">
               <div className="flex gap-1.5 items-center h-5">
                 {[0, 0.2, 0.4].map((d) => (
-                  <div key={d} className="w-1.5 h-1.5 rounded-full bg-accent-green" style={{ animation: `bounce 1.2s ${d}s infinite` }} />
+                  <div key={d} className="w-1.5 h-1.5 rounded-full bg-accent-green"
+                    style={{ animation: `bounce 1.2s ${d}s infinite` }} />
                 ))}
               </div>
             </div>
@@ -101,6 +108,7 @@ export default function AICoachPage() {
         )}
         <div ref={bottomRef} />
       </div>
+
       <div className="flex gap-2 flex-wrap">
         {QUICK_PROMPTS.map((p) => (
           <button key={p} onClick={() => send(p)} disabled={loading}
@@ -109,15 +117,18 @@ export default function AICoachPage() {
           </button>
         ))}
       </div>
+
       <div className="flex gap-3">
-        <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-          placeholder="Ask your AI coach anything..." className="ef-input flex-1" />
+        <input value={input} onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+          placeholder="Ask your AI coach anything..."
+          className="ef-input flex-1" />
         <button onClick={() => send()} disabled={!input.trim() || loading}
           className="ef-btn-primary w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40">
           <Send size={14} />
         </button>
       </div>
-      <style>{`@keyframes bounce { 0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1} }`}</style>
+      <style>{`@keyframes bounce{0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1}}`}</style>
     </div>
   );
-  }
+}
